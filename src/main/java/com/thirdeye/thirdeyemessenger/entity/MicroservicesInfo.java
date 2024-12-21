@@ -32,4 +32,10 @@ public class MicroservicesInfo {
     
     @Column(name = "microserviceuniqueid", nullable = false)
     private Integer microserviceUniqueId;
+    
+    @Column(name = "type", nullable = false)
+    private Integer type;
+    
+    @Column(name = "microservicelocalurl", nullable = false)
+    private String microserviceLocalUrl;
 }
