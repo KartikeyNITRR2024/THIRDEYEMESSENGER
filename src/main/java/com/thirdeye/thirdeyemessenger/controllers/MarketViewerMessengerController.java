@@ -33,7 +33,7 @@ public class MarketViewerMessengerController {
     public ResponseEntity<Boolean> sendMarketViewerData(@PathVariable("uniqueId") Integer pathUniqueId, @RequestBody LiveStockPayload liveStockPayload) {
         if (pathUniqueId.equals(allMicroservicesData.current.getMicroserviceUniqueId())) {
             logger.info("Status check for uniqueId {}: Found", allMicroservicesData.current.getMicroserviceUniqueId());
-            marketViewerMessengerServiceImpl.telegramMessageCreater(liveStockPayload);
+            marketViewerMessengerServiceImpl.messageCreater(liveStockPayload);
             return ResponseEntity.ok(true);
         } else {
             logger.warn("Status check for uniqueId {}: Not Found", allMicroservicesData.current.getMicroserviceUniqueId());

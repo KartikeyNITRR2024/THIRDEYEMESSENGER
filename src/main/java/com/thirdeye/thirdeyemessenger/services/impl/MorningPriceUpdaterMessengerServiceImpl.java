@@ -2,6 +2,7 @@ package com.thirdeye.thirdeyemessenger.services.impl;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
@@ -11,9 +12,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import com.thirdeye.thirdeyemessenger.entity.UserInfo;
 import com.thirdeye.thirdeyemessenger.pojos.Changes;
 import com.thirdeye.thirdeyemessenger.services.MorningPriceUpdaterMessengerService;
+import com.thirdeye.thirdeyemessenger.services.OldMessageService;
 import com.thirdeye.thirdeyemessenger.utils.PropertyLoader;
 import com.thirdeye.thirdeyemessenger.utils.TimeManagementUtil;
 
@@ -40,11 +43,20 @@ public class MorningPriceUpdaterMessengerServiceImpl implements MorningPriceUpda
 
     @Autowired
     private PropertyLoader propertyLoader;
+    
+    @Autowired
+    private SimpMessagingTemplate simpMessagingTemplate;
+    
+    @Autowired
+    private OldMessageService oldMessageService;
 
     private static final Logger logger = LoggerFactory.getLogger(HoldedStockMessengerServiceImpl.class);
 
 	@Override
-	public void telegramMessageCreater(List<Changes> changeInPriceList) throws Exception {
+	public void messageCreater(List<Changes> changeInPriceList) throws Exception {
+		
+		Map<Long, UserInfo> users = userInfoServiceImpl.getAllUsers();  
+		Set<Long> userIds = users.keySet();
 		
 		try {
 			String message = String.format("Time : %s\n\n", 
@@ -65,13 +77,49 @@ public class MorningPriceUpdaterMessengerServiceImpl implements MorningPriceUpda
 				}
 				else
 				{
-					telegramMessageSender(message);
+					try
+					{
+					   websocketMessageSender(message, users);
+					}
+					catch(Exception ex)
+					{
+						ex.printStackTrace();
+					}
+					try
+					{
+						telegramMessageSender(message, users);
+					}
+					catch(Exception ex)
+					{
+						ex.printStackTrace();
+					}
+					for (Long key : userIds) {
+						oldMessageService.addMessageEntity(message, key.intValue(), 2);
+			        }
 					message = "";
 				}
 			}
 			if(message.length() > 0)
 			{
-				telegramMessageSender(message);
+				try
+				{
+				   websocketMessageSender(message, users);
+				}
+				catch(Exception ex)
+				{
+					ex.printStackTrace();
+				}
+				try
+				{
+					telegramMessageSender(message, users);
+				}
+				catch(Exception ex)
+				{
+					ex.printStackTrace();
+				}
+				for (Long key : userIds) {
+					oldMessageService.addMessageEntity(message, key.intValue(), 2);
+		        }
 			}
 		} catch (Exception ex)
 		{
@@ -79,10 +127,34 @@ public class MorningPriceUpdaterMessengerServiceImpl implements MorningPriceUpda
 			throw new Exception(ex.getMessage());
 		}
 	}
+	
+	@Override
+	public void websocketMessageSender(String message, Map<Long, UserInfo> users) throws Exception { 
+	    AtomicInteger failedCount = new AtomicInteger(0);
+	    users.forEach((userId, userInfo) -> {
+	        try {
+	        	if(userInfo.getIsActive().equals(1))
+	        	{
+		            String destination = "/marketviewer/" + userId;
+		            simpMessagingTemplate.convertAndSend(destination, message);
+		            logger.info("Message has been sent to userId: {} using websocket", userId);
+            	}else
+            	{
+            		logger.info("User {} is not active", userId);
+            	}
+	        } catch (Exception e) {
+	            failedCount.incrementAndGet();
+	            logger.error("Could not send message to userId: {}", userId, e);
+	        }
+	    });
+	    
+	    if (failedCount.get() > 0) {
+	        throw new Exception("Failed to send message to " + failedCount.get() + " users.");
+	    }
+	}
 
 	@Override
-	public void telegramMessageSender(String message) throws Exception {
-	    Map<Long, UserInfo> users = userInfoServiceImpl.getAllUsers();
+	public void telegramMessageSender(String message, Map<Long, UserInfo> users) throws Exception {
 	    
 	    AtomicInteger failedCount = new AtomicInteger(0);
 
@@ -95,7 +167,11 @@ public class MorningPriceUpdaterMessengerServiceImpl implements MorningPriceUpda
 		                userInfo.getTelegramGroupId3(),
 		                message);
 		            restTemplate.getForObject(telegramApiUrl, String.class);
-		            logger.info("Message has been sent to userId: {}", userId);
+		            logger.info("Message has been sent to userId: {} using telegram", userId);
+		            
+		            String destination = "/marketviewer/" + userId;
+		            simpMessagingTemplate.convertAndSend(destination, message);
+		            logger.info("Message has been sent to userId: {} using websocket", userId);
             	}else
             	{
             		logger.info("User {} is not active", userId);

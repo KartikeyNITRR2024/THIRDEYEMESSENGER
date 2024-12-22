@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -20,6 +21,7 @@ import org.springframework.web.client.RestTemplate;
 import com.thirdeye.thirdeyemessenger.pojos.LiveStockPayload;
 import com.thirdeye.thirdeyemessenger.pojos.ProfitDetails;
 import com.thirdeye.thirdeyemessenger.services.MarketViewerMessengerService;
+import com.thirdeye.thirdeyemessenger.services.OldMessageService;
 import com.thirdeye.thirdeyemessenger.utils.PropertyLoader;
 import com.thirdeye.thirdeyemessenger.utils.TimeManagementUtil;
 
@@ -47,9 +49,15 @@ public class MarketViewerMessengerServiceImpl implements MarketViewerMessengerSe
     @Value("${messageLength}")
     private Integer messageLength;
     
+    @Autowired
+    private SimpMessagingTemplate simpMessagingTemplate;
+    
     
     @Autowired
     PropertyLoader propertyLoader;
+    
+    @Autowired
+    OldMessageService oldMessageService;
     
     Map<Long,List<String>> messageHash = new HashMap<>();
     
@@ -60,7 +68,7 @@ public class MarketViewerMessengerServiceImpl implements MarketViewerMessengerSe
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     @Override
-    public void telegramMessageCreater(LiveStockPayload liveStockPayload) {
+    public void messageCreater(LiveStockPayload liveStockPayload) {
     	logger.info("Data is " + liveStockPayload);
         lock.writeLock().lock();
     	try {
@@ -107,7 +115,7 @@ public class MarketViewerMessengerServiceImpl implements MarketViewerMessengerSe
     
     @Override
     @Scheduled(fixedRateString = "${timeGapInMillis}")
-    public void telegramMessageSizeAdjuster() {
+    public void messageSizeAdjuster() {
         lock.readLock().lock();
         try {
             for (Map.Entry<Long, List<String>> entry : messageHash.entrySet()) {
@@ -122,7 +130,9 @@ public class MarketViewerMessengerServiceImpl implements MarketViewerMessengerSe
                     while (iterator.hasNext()) {
                         String s = iterator.next();
                         if (message.length() + s.length() > messageLength) {
+                            websocketMessageSender(message.toString(), entry.getKey());
                             telegramMessageSender(message.toString(), entry.getKey());
+                            oldMessageService.addMessageEntity(message.toString(), entry.getKey().intValue(), 1);
                             message.setLength(0);
                         }
                         message.append(s).append("\n\n");
@@ -131,7 +141,9 @@ public class MarketViewerMessengerServiceImpl implements MarketViewerMessengerSe
                     
                     message.append("****End****");
                     if (message.length() > 0) {
+                        websocketMessageSender(message.toString(), entry.getKey());
                         telegramMessageSender(message.toString(), entry.getKey());
+                        oldMessageService.addMessageEntity(message.toString(), entry.getKey().intValue(), 1);
                     }
                 }
             }
@@ -152,7 +164,7 @@ public class MarketViewerMessengerServiceImpl implements MarketViewerMessengerSe
 	                    userInfoServiceImpl.getIdToUser(userId).getTelegramGroupId1(), 
 	                    message);
 	            restTemplate.getForObject(telegramApiUrl, String.class);
-	            logger.info("Message has been sent");
+	            logger.info("Message has been sent to userId: {} using telegram", userId);
             }
         	else
         	{
@@ -160,6 +172,26 @@ public class MarketViewerMessengerServiceImpl implements MarketViewerMessengerSe
         	}
         } catch (Exception e) {
             logger.error("Could not send Message", e);
+            logger.error("Message has been sent to userId: {} using telegram", userId);
+        }
+    }
+    
+    @Override
+    public void websocketMessageSender(String message, Long userId) {
+        try {
+//            logger.info("Message is : {}", message);
+        	if(userInfoServiceImpl.getIdToUser(userId).getIsActive().equals(1)) {
+	            String destination = "/marketviewer/" + userId;
+	            simpMessagingTemplate.convertAndSend(destination, message);
+	            logger.info("Message has been sent to userId: {} using websocket", userId);
+            }
+        	else
+        	{
+        		logger.info("User {} is not active", userId);
+        	}
+        } catch (Exception e) {
+            logger.error("Could not send Message", e);
+            logger.error("Message has been not sent to userId: {} using websocket", userId);
         }
     }
 

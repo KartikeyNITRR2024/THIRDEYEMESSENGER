@@ -4,6 +4,6 @@ import com.thirdeye.thirdeyemessenger.pojos.HoldedStockPayload;
 
 public interface HoldedStockMessengerService {
 
-	void telegramMessageCreater(HoldedStockPayload holdedStockPayload);
+	void messageCreater(HoldedStockPayload holdedStockPayload);
 
 }

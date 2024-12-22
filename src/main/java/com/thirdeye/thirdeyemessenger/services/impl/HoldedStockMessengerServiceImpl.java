@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -15,6 +16,7 @@ import com.thirdeye.thirdeyemessenger.pojos.ChangeDetails;
 import com.thirdeye.thirdeyemessenger.pojos.ChangeStatusDetails;
 import com.thirdeye.thirdeyemessenger.pojos.HoldedStockPayload;
 import com.thirdeye.thirdeyemessenger.services.HoldedStockMessengerService;
+import com.thirdeye.thirdeyemessenger.services.OldMessageService;
 import com.thirdeye.thirdeyemessenger.utils.PropertyLoader;
 import com.thirdeye.thirdeyemessenger.utils.TimeManagementUtil;
 
@@ -38,11 +40,17 @@ public class HoldedStockMessengerServiceImpl implements HoldedStockMessengerServ
 
     @Autowired
     private PropertyLoader propertyLoader;
+    
+    @Autowired
+    private SimpMessagingTemplate simpMessagingTemplate;
+    
+    @Autowired
+    private OldMessageService oldMessageService;
 
     private static final Logger logger = LoggerFactory.getLogger(HoldedStockMessengerServiceImpl.class);
 
     @Override
-    public void telegramMessageCreater(HoldedStockPayload holdedStockPayload) {
+    public void messageCreater(HoldedStockPayload holdedStockPayload) {
         List<ChangeDetails> changeDetailsList = holdedStockPayload.getChangeDetailsList();
         if (changeDetailsList != null && !changeDetailsList.isEmpty()) {
             String stockSymbol = stocksListServiceImpl.getIdToStock(holdedStockPayload.getStockId()).replace("&", "_");
@@ -71,6 +79,22 @@ public class HoldedStockMessengerServiceImpl implements HoldedStockMessengerServ
                 if (!foundNew) {
                     message += "Drop below lowest\n";
                 }
+                
+                try {
+                	if(userInfoServiceImpl.getIdToUser(changeDetails.getUserId()).getIsActive().equals(1))
+                	{
+    		            String destination = "/marketviewer/" + changeDetails.getUserId();
+    		            simpMessagingTemplate.convertAndSend(destination, message);
+	                    logger.info("Message has been sent using websocket {} :"+changeDetails.getUserId());
+                	}
+                	else
+                	{
+                		logger.info("User {} is not active", changeDetails.getUserId());
+                	}
+                } catch (Exception e) {
+                    logger.error("Could not send Message", e);
+                    logger.error("Message has been not sent using websocket {} :"+changeDetails.getUserId());
+                }
 
                 try {
                 	if(userInfoServiceImpl.getIdToUser(changeDetails.getUserId()).getIsActive().equals(1))
@@ -81,7 +105,7 @@ public class HoldedStockMessengerServiceImpl implements HoldedStockMessengerServ
 	                            userInfoServiceImpl.getIdToUser(changeDetails.getUserId()).getTelegramGroupId2(),
 	                            message);
 	                    restTemplate.getForObject(telegramApiUrl, String.class);
-	                    logger.info("Message has been sent");
+	                    logger.info("Message has been sent using telegram {} :"+changeDetails.getUserId());
                 	}
                 	else
                 	{
@@ -89,7 +113,14 @@ public class HoldedStockMessengerServiceImpl implements HoldedStockMessengerServ
                 	}
                 } catch (Exception e) {
                     logger.error("Could not send Message", e);
+                    logger.error("Message has been not sent using telegram {} :"+changeDetails.getUserId());
                 }
+                try {
+					oldMessageService.addMessageEntity(message, changeDetails.getUserId().intValue(), 3);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+                
             }
         }
     }

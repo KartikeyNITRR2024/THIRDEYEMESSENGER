@@ -34,7 +34,7 @@ public class MorningPriceUpdaterMessengerController {
         if (pathUniqueId.equals(allMicroservicesData.current.getMicroserviceUniqueId())) {
             logger.info("Status check for uniqueId {}: Found", allMicroservicesData.current.getMicroserviceUniqueId());
             try {
-				morningPriceUpdaterMessengerService.telegramMessageCreater(changeInPriceList);
+				morningPriceUpdaterMessengerService.messageCreater(changeInPriceList);
 			} catch (Exception e) {
 				return ResponseEntity.ok(false);
 			}

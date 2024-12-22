@@ -35,7 +35,7 @@ public class HoldedStockMessengerController {
     public ResponseEntity<Boolean> sendHoldedStockData(@PathVariable("uniqueId") Integer pathUniqueId, @RequestBody HoldedStockPayload holdedStockPayload) {
         if (pathUniqueId.equals(allMicroservicesData.current.getMicroserviceUniqueId())) {
             logger.info("Status check for uniqueId {}: Found", allMicroservicesData.current.getMicroserviceUniqueId());
-            holdedStockMessengerServiceImpl.telegramMessageCreater(holdedStockPayload);
+            holdedStockMessengerServiceImpl.messageCreater(holdedStockPayload);
             return ResponseEntity.ok(true);
         } else {
             logger.warn("Status check for uniqueId {}: Not Found", allMicroservicesData.current.getMicroserviceUniqueId());
