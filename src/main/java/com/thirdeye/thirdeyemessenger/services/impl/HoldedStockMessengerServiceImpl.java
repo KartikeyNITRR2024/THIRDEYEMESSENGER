@@ -80,8 +80,8 @@ public class HoldedStockMessengerServiceImpl implements HoldedStockMessengerServ
                     message += "Drop below lowest\n";
                 }
                 
-                String messagePart = String.format("Current Price is %s\n",  
-                		changeDetails.getNewPrice());
+                String messagePart = String.format("Current Price is %s\nBuying Price is %s\n",  
+                		changeDetails.getNewPrice(),changeDetails.getBuyingPrice());
                 
                 message += messagePart;
                 
