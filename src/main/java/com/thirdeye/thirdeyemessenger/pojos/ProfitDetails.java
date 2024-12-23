@@ -14,4 +14,6 @@ public class ProfitDetails {
    private Double profit;
    private Integer profitType;
    private Long timeGap;
+   private Double oldPrice;
+   private Double newPrice;
 }

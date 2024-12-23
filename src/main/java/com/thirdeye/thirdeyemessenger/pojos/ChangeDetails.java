@@ -18,4 +18,5 @@ public class ChangeDetails {
 	private Long userId;
 	private Integer changeType;
 	List<ChangeStatusDetails> statusList = new ArrayList<>();
+	private Double newPrice;
 }

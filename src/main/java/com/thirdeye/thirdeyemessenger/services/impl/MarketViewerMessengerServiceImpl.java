@@ -77,12 +77,12 @@ public class MarketViewerMessengerServiceImpl implements MarketViewerMessengerSe
 	            for (ProfitDetails profitDetails : liveStockPayload.getProfitDetailsList()) {
 	//                String message1 = "Price of RELIANCE is changed by 10% in last 30 second. Time : 30:04:34";
 	//                String message2 = "Price of RELIANCE is changed by 10 rupees in last 30 second. Time : 30:04:34";
-	                String message = String.format("Price of %s is changed by %s%s in last %s seconds. Time : %s", 
+	                String message = String.format("Price of %s is changed by %s%s in last %s seconds. Time : %s.\nOld price %s and New price %s", 
 	                                               stockSymbol, 
 	                                               profitDetails.getProfit(), 
 	                                               profitDetails.getProfitType() == 0 ? "%" : " Rupees", 
 	                                               profitDetails.getTimeGap(), 
-	                                               timeManagementUtil.getCurrentTimeString(liveStockPayload.getTime()));
+	                                               timeManagementUtil.getCurrentTimeString(liveStockPayload.getTime()),profitDetails.getOldPrice(),profitDetails.getNewPrice());
 	                logger.info("Message is : {}",message);
 	                if(messageHash.containsKey(profitDetails.getUserId()))
 	                {
