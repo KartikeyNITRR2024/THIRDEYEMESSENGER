@@ -83,7 +83,7 @@ public class HoldedStockMessengerServiceImpl implements HoldedStockMessengerServ
                 try {
                 	if(userInfoServiceImpl.getIdToUser(changeDetails.getUserId()).getIsActive().equals(1))
                 	{
-    		            String destination = "/marketviewer/" + changeDetails.getUserId();
+    		            String destination = "/holdedstockviewer/" + changeDetails.getUserId();
     		            simpMessagingTemplate.convertAndSend(destination, message);
 	                    logger.info("Message has been sent using websocket {} :"+changeDetails.getUserId());
                 	}
