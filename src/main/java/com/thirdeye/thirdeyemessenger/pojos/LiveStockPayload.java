@@ -11,7 +11,7 @@ import lombok.ToString;
 @Setter
 @ToString
 public class LiveStockPayload {
-	private Integer batchId;
+	private Integer z;
 	private Long stockId;
 	private Timestamp time;
 	private Double price;
